@@ -642,9 +642,6 @@ pub mod macros {
 
 #[cfg(feature = "tcp-shield")]
 mod tcp_shield {
-    use std::future::Future;
-    use std::pin::Pin;
-
     use crate::PinnedLivelyResult;
     use tokio::io::{AsyncRead, AsyncWrite};
 
@@ -653,10 +650,10 @@ mod tcp_shield {
 
     pub struct TcpShieldHeaderDelegate;
 
-    impl<C> PacketComponent<C> for TcpShieldHeaderDelegate {
+    impl<C: Send + Sync> PacketComponent<C> for TcpShieldHeaderDelegate {
         type ComponentType = String;
 
-        fn decode<'a, A: AsyncRead + Unpin + ?Sized>(
+        fn decode<'a, A: AsyncRead + Unpin + ?Sized + Send + Sync>(
             context: &'a mut C,
             read: &'a mut A,
         ) -> PinnedLivelyResult<'a, Self::ComponentType> {
@@ -669,7 +666,7 @@ mod tcp_shield {
             })
         }
 
-        fn encode<'a, A: AsyncWrite + Unpin + ?Sized>(
+        fn encode<'a, A: AsyncWrite + Unpin + ?Sized + Send + Sync>(
             component_ref: &'a Self::ComponentType,
             context: &'a mut C,
             write: &'a mut A,
@@ -683,10 +680,10 @@ mod tcp_shield {
             })
         }
 
-        fn size(input: &Self::ComponentType, context: &mut C) -> Size {
-            match input.size_owned(context) {
-                Size::Dynamic(x) => Size::Dynamic(x + 4),
-                Size::Constant(x) => Size::Constant(x + 4),
+        fn size(input: &Self::ComponentType, context: &mut C) -> crate::prelude::Result<Size> {
+            match String::size(input, context)? {
+                Size::Dynamic(x) => Ok(Size::Dynamic(x + 4)),
+                Size::Constant(x) => Ok(Size::Constant(x + 4)),
             }
         }
     }

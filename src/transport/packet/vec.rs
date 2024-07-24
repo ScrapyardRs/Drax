@@ -232,7 +232,7 @@ where
             let vec_size = read.read_var_int().await? as usize;
             if vec_size > N {
                 throw_explain!(format!(
-                    "Tried to encode vec of length {vec_size} but was bound to length {N}"
+                    "Tried to decode vec of length {vec_size} but was bound to length {N}"
                 ));
             }
 
