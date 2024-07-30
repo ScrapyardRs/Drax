@@ -1,11 +1,15 @@
 use crate::prelude::{DraxReadExt, DraxWriteExt, PacketComponent, Size};
 use crate::transport::packet::primitive::VarInt;
 use crate::PinnedLivelyResult;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 impl<C: Send + Sync, K: PacketComponent<C>, V: PacketComponent<C>> PacketComponent<C>
-    for std::collections::HashMap<K, V>
+    for HashMap<K, V>
+where
+    K::ComponentType: Eq + Hash,
 {
-    type ComponentType = Vec<(K::ComponentType, V::ComponentType)>;
+    type ComponentType = HashMap<K::ComponentType, V::ComponentType>;
 
     fn decode<'a, A: tokio::io::AsyncRead + Unpin + Send + Sync + ?Sized>(
         context: &'a mut C,
@@ -13,12 +17,12 @@ impl<C: Send + Sync, K: PacketComponent<C>, V: PacketComponent<C>> PacketCompone
     ) -> PinnedLivelyResult<'a, Self::ComponentType> {
         Box::pin(async move {
             let len = read.read_var_int().await?;
-            let mut map = Vec::with_capacity(len as usize);
+            let mut map = HashMap::with_capacity(len as usize);
             for _ in 0..len {
-                map.push((
+                map.insert(
                     K::decode(context, read).await?,
                     V::decode(context, read).await?,
-                ));
+                );
             }
             Ok(map)
         })
