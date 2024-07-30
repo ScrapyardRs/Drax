@@ -52,7 +52,7 @@ macro_rules! simple_packet_impl {
                 context: &'a mut C,
                 read: &'a mut A,
             ) -> PinnedLivelyResult<'a, Self::ComponentType> {
-                simple_decode!(read, context => {
+                $crate::simple_decode!(read, context => {
                     $(
                         let $field_name;
                     )*
@@ -64,7 +64,7 @@ macro_rules! simple_packet_impl {
                 context: &'a mut C,
                 write: &'a mut A,
             ) -> PinnedLivelyResult<'a, ()> {
-                simple_encode!(write, context => {
+                $crate::simple_encode!(write, context => {
                     $(
                         component_ref.$field_name;
                     )*
@@ -72,7 +72,7 @@ macro_rules! simple_packet_impl {
             }
 
             fn size(input: &Self::ComponentType, context: &mut C) -> crate::prelude::Result<Size> {
-                simple_size!(context, size => {
+                $crate::simple_size!(context, size => {
                     $(
                         input.$field_name;
                     )*
