@@ -28,13 +28,13 @@ macro_rules! simple_decode {
 
 #[macro_export]
 macro_rules! simple_size {
-    ($context:ident, $size_ident:ident => { $($size:expr;)* }) => {
+    ($context:ident => { $($size:expr;)* }) => {
         {
-            let mut $size_ident = $crate::prelude::Size::Constant(0);
+            let mut size = $crate::prelude::Size::Constant(0);
             $(
-                $size_ident = $size_ident + $crate::transport::packet::size_of_me(&$size, $context)?;
+                size = size + $crate::transport::packet::size_of_me(&$size, $context)?;
             )*
-            Ok($size_ident)
+            Ok(size)
         }
     };
 }
