@@ -99,6 +99,7 @@ where
     impl_deref_component!(Arc<T::ComponentType>, C, T);
 }
 
+pub mod map;
 pub mod option;
 pub mod primitive;
 #[cfg(feature = "serde")]
