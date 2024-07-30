@@ -20,7 +20,7 @@ pub trait DraxReadExt {
     fn decode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
         &'a mut self,
         context: &'a mut C,
-    ) -> PinnedLivelyResult<'a, P::ComponentType>
+    ) -> PinnedLivelyResult<'a, P>
     where
         P: Sized;
 
@@ -54,7 +54,7 @@ where
     fn decode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
         &'a mut self,
         context: &'a mut C,
-    ) -> PinnedLivelyResult<'a, P::ComponentType>
+    ) -> PinnedLivelyResult<'a, P>
     where
         P: Sized,
     {
@@ -86,7 +86,7 @@ pub trait DraxWriteExt {
     fn encode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
         &'a mut self,
         context: &'a mut C,
-        component: &'a P::ComponentType,
+        component: &'a P,
     ) -> PinnedLivelyResult<'a, ()>;
 }
 
@@ -113,7 +113,7 @@ where
     fn encode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
         &'a mut self,
         context: &'a mut C,
-        component: &'a P::ComponentType,
+        component: &'a P,
     ) -> PinnedLivelyResult<'a, ()> {
         P::encode(component, context, self)
     }
