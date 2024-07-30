@@ -12,11 +12,14 @@ macro_rules! simple_encode {
 
 #[macro_export]
 macro_rules! simple_decode {
+    (@raw $reader:ident, $context:ident => { $(let $decode_ident:ident;)* }) => {
+        $(
+            let $decode_ident = $crate::prelude::DraxReadExt::decode_own_component($reader, $context).await?;
+        )*
+    };
     ($reader:ident, $context:ident => { $(let $decode_ident:ident;)* }) => {
         Box::pin(async move {
-            $(
-                let $decode_ident = $crate::prelude::DraxReadExt::decode_own_component($reader, $context).await?;
-            )*
+            $crate::simple_decode!(@raw $reader, $context => { $(let $decode_ident;)* });
 
             Ok(Self { $($decode_ident),* })
         })
