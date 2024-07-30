@@ -12,9 +12,9 @@ macro_rules! simple_encode {
 
 #[macro_export]
 macro_rules! simple_decode {
-    (@raw $reader:ident, $context:ident => { $(let $decode_ident:ident;)* }) => {
+    (@raw $reader:ident, $context:ident => { $(let $decode_ident:ident$(: $decode_ty:ty)?;)* }) => {
         $(
-            let $decode_ident = $crate::prelude::DraxReadExt::decode_own_component($reader, $context).await?;
+            let $decode_ident$(: $decode_ty)? = $crate::prelude::DraxReadExt::decode_own_component($reader, $context).await?;
         )*
     };
     ($reader:ident, $context:ident => { $(let $decode_ident:ident;)* }) => {
