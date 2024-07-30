@@ -17,6 +17,13 @@ pub trait DraxReadExt {
     where
         P: Sized;
 
+    fn decode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
+        &'a mut self,
+        context: &'a mut C,
+    ) -> PinnedLivelyResult<'a, P::ComponentType>
+    where
+        P: Sized;
+
     fn decrypt<'a>(&'a mut self, cipher: &'a mut Cipher) -> CipherAttachedReader<'a, Self>
     where
         Self: Sized;
@@ -35,6 +42,16 @@ where
     }
 
     fn decode_component<'a, C: Send + Sync, P: PacketComponent<C>>(
+        &'a mut self,
+        context: &'a mut C,
+    ) -> PinnedLivelyResult<'a, P::ComponentType>
+    where
+        P: Sized,
+    {
+        P::decode(context, self)
+    }
+
+    fn decode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
         &'a mut self,
         context: &'a mut C,
     ) -> PinnedLivelyResult<'a, P::ComponentType>
@@ -65,6 +82,12 @@ pub trait DraxWriteExt {
         context: &'a mut C,
         component: &'a P::ComponentType,
     ) -> PinnedLivelyResult<'a, ()>;
+
+    fn encode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
+        &'a mut self,
+        context: &'a mut C,
+        component: &'a P::ComponentType,
+    ) -> PinnedLivelyResult<'a, ()>;
 }
 
 impl<T> DraxWriteExt for T
@@ -80,6 +103,14 @@ where
     }
 
     fn encode_component<'a, C: Send + Sync, P: PacketComponent<C>>(
+        &'a mut self,
+        context: &'a mut C,
+        component: &'a P::ComponentType,
+    ) -> PinnedLivelyResult<'a, ()> {
+        P::encode(component, context, self)
+    }
+
+    fn encode_own_component<'a, C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
         &'a mut self,
         context: &'a mut C,
         component: &'a P::ComponentType,
