@@ -69,7 +69,7 @@ macro_rules! simple_packet_impl {
             }
 
             fn size(input: &Self::ComponentType, context: &mut C) -> $crate::prelude::Result<Size> {
-                $crate::simple_size!(context, size => {
+                $crate::simple_size!(context => {
                     $(
                         input.$field_name;
                     )*
