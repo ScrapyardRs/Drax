@@ -46,6 +46,11 @@ pub mod error {
                 error_type,
             }
         }
+
+        #[inline]
+        pub fn is_eof(&self) -> bool {
+            matches!(self.error_type, ErrorType::EOF)
+        }
     }
 
     /// The type of the error.
