@@ -53,6 +53,13 @@ pub trait PacketComponent<C: Send + Sync> {
     fn size(input: &Self::ComponentType, context: &mut C) -> crate::prelude::Result<Size>;
 }
 
+pub fn size_of_me<C: Send + Sync, P: PacketComponent<C, ComponentType = P>>(
+    component: &P,
+    context: &mut C,
+) -> crate::prelude::Result<Size> {
+    P::size(component, context)
+}
+
 macro_rules! impl_deref_component {
     ($impl_ty:ty, $c_ty:ty, $t_ty:ty) => {
         type ComponentType = $impl_ty;

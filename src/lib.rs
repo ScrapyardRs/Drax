@@ -31,6 +31,7 @@ pub mod prelude;
 /// Provides a method of directly interacting with the transport layer. A soft-wrapper will be
 /// available during serialization and deserialization to account for common types.
 pub mod transport;
+mod macros;
 
 pub type PinnedLivelyResult<'a, T> =
     Pin<Box<dyn std::future::Future<Output = transport::Result<T>> + 'a + Send + Sync>>;
