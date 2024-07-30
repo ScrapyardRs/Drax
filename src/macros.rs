@@ -1,9 +1,3 @@
-use crate::prelude::{DraxWriteExt, PacketComponent, Size};
-use crate::PinnedLivelyResult;
-use std::collections::HashMap;
-use tokio::io::{AsyncRead, AsyncWrite};
-use uuid::Uuid;
-
 #[macro_export]
 macro_rules! simple_encode {
     ($writer:ident, $context:ident => { $($encode:expr;)* }) => {
@@ -21,7 +15,7 @@ macro_rules! simple_decode {
     ($reader:ident, $context:ident => { $(let $decode_ident:ident;)* }) => {
         Box::pin(async move {
             $(
-                let $decode_ident = crate::prelude::DraxReadExt::decode_own_component($reader, $context).await?;
+                let $decode_ident = $crate::prelude::DraxReadExt::decode_own_component($reader, $context).await?;
             )*
 
             Ok(Self { $($decode_ident),* })
@@ -51,7 +45,7 @@ macro_rules! simple_packet_impl {
             fn decode<'a, A: AsyncRead + Unpin + Send + Sync + ?Sized>(
                 context: &'a mut C,
                 read: &'a mut A,
-            ) -> PinnedLivelyResult<'a, Self::ComponentType> {
+            ) -> $crate::PinnedLivelyResult<'a, Self::ComponentType> {
                 $crate::simple_decode!(read, context => {
                     $(
                         let $field_name;
@@ -63,7 +57,7 @@ macro_rules! simple_packet_impl {
                 component_ref: &'a Self::ComponentType,
                 context: &'a mut C,
                 write: &'a mut A,
-            ) -> PinnedLivelyResult<'a, ()> {
+            ) -> $crate::PinnedLivelyResult<'a, ()> {
                 $crate::simple_encode!(write, context => {
                     $(
                         component_ref.$field_name;
@@ -71,7 +65,7 @@ macro_rules! simple_packet_impl {
                 })
             }
 
-            fn size(input: &Self::ComponentType, context: &mut C) -> crate::prelude::Result<Size> {
+            fn size(input: &Self::ComponentType, context: &mut C) -> $crate::prelude::Result<Size> {
                 $crate::simple_size!(context, size => {
                     $(
                         input.$field_name;
