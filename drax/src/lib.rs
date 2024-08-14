@@ -22,9 +22,6 @@
 //! compatibility mechanisms often requires a lot of workarounds and creates turbulence in the
 //! actual protocol implementation.
 
-/// Exposes simple macros used for deriving packet component implementations.
-pub mod macros;
-
 /// Provides all the types and traits necessary for building out a transport layer.
 pub mod transport;
 
