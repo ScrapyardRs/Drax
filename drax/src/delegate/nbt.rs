@@ -63,7 +63,7 @@ macro_rules! define_tags {
             }
         }
 
-        pub async fn load_tag<R: $crate::prelude::AsyncRead + Unpin + Send + Sync + ?Sized>(
+        pub async fn load_tag<R: ::tokio::io::AsyncRead + Unpin + Send + Sync + ?Sized>(
             read: &mut R,
             bit: u8,
             depth: i32,
@@ -82,7 +82,7 @@ macro_rules! define_tags {
             }
         }
 
-        pub async fn write_tag<W: $crate::prelude::AsyncWrite + Unpin + Send + Sync + ?Sized>(
+        pub async fn write_tag<W: ::tokio::io::AsyncWrite + Unpin + Send + Sync + ?Sized>(
             write: &mut W,
             tag: &Tag
         ) -> DraxResult<()> {

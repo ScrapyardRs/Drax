@@ -10,9 +10,10 @@ mod var_num {
     use std::pin::Pin;
     use std::task::{ready, Context, Poll};
 
-    use crate::prelude::{AsyncRead, AsyncWrite, DraxResult, TransportError};
+    use crate::prelude::{DraxResult, TransportError};
     use pin_project_lite::pin_project;
     use tokio::io::ReadBuf;
+    use tokio::io::{AsyncRead, AsyncWrite};
 
     macro_rules! declare_var_num_ext {
         (
@@ -304,21 +305,17 @@ mod test {
         };
     }
 
-    macro_rules! var_int_tests {
-        () => {
-            vec![
-                (25, vec![25]),
-                (55324, vec![156, 176, 3]),
-                (-8877777, vec![175, 146, 226, 251, 15]),
-                (2147483647, vec![255, 255, 255, 255, 7]),
-                (-2147483648, vec![128, 128, 128, 128, 8]),
-            ]
-        };
-    }
+    const VAR_INT_TESTS: &[(i32, &[u8])] = &[
+        (25, &[25]),
+        (55324, &[156, 176, 3]),
+        (-8877777, &[175, 146, 226, 251, 15]),
+        (2147483647, &[255, 255, 255, 255, 7]),
+        (-2147483648, &[128, 128, 128, 128, 8]),
+    ];
 
     #[tokio::test]
     async fn test_read_var_int() -> DraxResult<()> {
-        for attempt in var_int_tests!() {
+        for attempt in VAR_INT_TESTS {
             let mut cursor = Cursor::new(attempt.1);
             let result = cursor.read_var_int().await?;
             assert_eq!(result, attempt.0);
@@ -328,7 +325,7 @@ mod test {
 
     #[tokio::test]
     async fn test_write_var_int() -> DraxResult<()> {
-        for attempt in var_int_tests!() {
+        for attempt in VAR_INT_TESTS {
             let mut cursor = Cursor::new(vec![]);
             cursor.write_var_int(attempt.0).await?;
             assert_eq!(cursor.into_inner(), attempt.1);

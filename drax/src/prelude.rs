@@ -1,5 +1,3 @@
-pub use tokio::io::{AsyncRead, AsyncWrite};
-
 #[cfg(feature = "nbt")]
 pub use crate::delegate::nbt::{EnsuredCompoundTag, Tag};
 #[cfg(feature = "serde")]

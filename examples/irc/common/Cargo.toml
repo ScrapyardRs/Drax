@@ -1,0 +1,9 @@
+[package]
+name = "irc-common"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["full"], default-features = true }
+
+drax.workspace = true

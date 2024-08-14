@@ -1,8 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
+    # Core crates
     "drax",
+    # Examples
+    ## Ping Pong
     "examples/pingpong",
+    ## IRC
+    "examples/irc/common",
+    "examples/irc/client",
+    "examples/irc/server",
 ]
 
 [workspace.package]

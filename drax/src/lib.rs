@@ -41,7 +41,7 @@ pub mod delegate {
             decode!($reader, _ctx $exec);
         };
         ($reader:ident, $ctx:ident $exec:expr) => {
-            async fn decode<A: $crate::prelude::AsyncRead + Unpin + Send + Sync + ?Sized>(
+            async fn decode<A: ::tokio::io::AsyncRead + Unpin + Send + Sync + ?Sized>(
                 $ctx: &mut C,
                 $reader: &mut A,
             ) -> $crate::prelude::DraxResult<Self::ComponentType> {
@@ -56,7 +56,7 @@ pub mod delegate {
         };
         ($component:ident, $writer:ident, $ctx:ident $($exec:expr)?) => {
             #[allow(redundant_semicolons)]
-            async fn encode<A: $crate::prelude::AsyncWrite + Unpin + Send + Sync + ?Sized>(
+            async fn encode<A: ::tokio::io::AsyncWrite + Unpin + Send + Sync + ?Sized>(
                 $component: &Self::ComponentType,
                 $ctx: &mut C,
                 $writer: &mut A,

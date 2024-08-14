@@ -1,6 +1,7 @@
 use crate::delegate::primitive;
 use crate::delegate::primitive::{ReadVarInt, ReadVarLong, WriteVarInt, WriteVarLong};
-use crate::prelude::{AsyncRead, AsyncWrite, DraxResult};
+use crate::prelude::DraxResult;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Declares the size in bytes of a packet component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -147,7 +148,8 @@ where
 
 #[cfg(feature = "context")]
 pub mod context {
-    use crate::prelude::{AsyncRead, AsyncWrite, DraxResult, PacketComponent};
+    use crate::prelude::{DraxResult, PacketComponent};
+    use tokio::io::{AsyncRead, AsyncWrite};
 
     /// A wrapper around a writer to streamline the process of encoding packet components
     /// using a specific context.
