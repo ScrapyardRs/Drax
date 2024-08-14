@@ -1,5 +1,5 @@
 use drax::error::DraxResult;
-use drax::prelude::{DraxReadExt, DraxWriteExt, PacketComponent, Size};
+use drax::prelude::{DraxReadExt, DraxWriteExt, PacketComponent, Size, VarInt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::oneshot;
@@ -18,7 +18,7 @@ impl<C: Send + Sync> PacketComponent<C> for Message {
         context: &mut C,
         read: &mut A,
     ) -> DraxResult<Self::ComponentType> {
-        let value = i32::decode(context, read).await?;
+        let value = VarInt::decode(context, read).await?;
         let value2 = i32::decode(context, read).await?;
         Ok(Self { value, value2 })
     }
@@ -28,13 +28,13 @@ impl<C: Send + Sync> PacketComponent<C> for Message {
         context: &mut C,
         write: &mut A,
     ) -> DraxResult<()> {
-        i32::encode(&component_ref.value, context, write).await?;
+        VarInt::encode(&component_ref.value, context, write).await?;
         i32::encode(&component_ref.value2, context, write).await
     }
 
     fn size(input: &Self::ComponentType, context: &mut C) -> DraxResult<Size> {
         let mut size = Size::Constant(0);
-        size = size + i32::size(&input.value, context)?;
+        size = size + VarInt::size(&input.value, context)?;
         size = size + i32::size(&input.value2, context)?;
         Ok(size)
     }
