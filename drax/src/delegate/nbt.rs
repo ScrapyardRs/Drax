@@ -397,7 +397,7 @@ define_tags! {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::delegate::nbt::{load_tag, read_string, write_string, write_tag, NbtAccounter, Tag};
     use crate::prelude::DraxResult;
     use std::io::Cursor;
