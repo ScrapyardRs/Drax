@@ -299,8 +299,8 @@ mod test {
                 Ok(())
             }
         };
-        ($op:tt .. $testable_pre:ty, $testable_post:ty, $test_ident:ident) => {
-            primitive_tests!($testable_post; { <$testable_pre>::MAX as $testable_post $op 10 }; $test_ident);
+        ($op:tt .. $($testable_pre:ty, $testable_post:ty, $test_ident:ident);*) => {
+            $(primitive_tests!($testable_post; { <$testable_pre>::MAX as $testable_post $op 10 }; $test_ident);)*
         };
     }
 
@@ -337,13 +337,17 @@ mod test {
     }
 
     primitive_tests!(u8; 10; test_u8);
-    primitive_tests!(+ .. u8, u16, test_u16);
-    primitive_tests!(+ .. u16, u32, test_u32);
-    primitive_tests!(+ .. u32, u64, test_u64);
+    primitive_tests!(+ ..
+        u8, u16, test_u16;
+        u16, u32, test_u32;
+        u32, u64, test_u64
+    );
     primitive_tests!(i8; 10; test_i8);
-    primitive_tests!(- .. i8, i16, test_i16);
-    primitive_tests!(- .. i16, i32, test_i32);
-    primitive_tests!(- .. i32, i64, test_i64);
+    primitive_tests!(- ..
+        i8, i16, test_i16;
+        i16, i32, test_i32;
+        i32, i64, test_i64
+    );
     primitive_tests!(f32; 30.40; test_f32);
     primitive_tests!(f64; { f32::MAX as f64 + 30.40 }; test_f64);
 
