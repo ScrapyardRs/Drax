@@ -1,0 +1,65 @@
+[package]
+name = "drax"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+readme.workspace = true
+license-file.workspace = true
+
+[dependencies]
+# Extended traits
+uuid = { version = "1.2.2", optional = true }
+
+# Error handling
+thiserror = "1.0"
+
+# Default dependencies
+pin-project-lite = "0.2.9"
+tokio-test = { version = "0.4.2", optional = true }
+
+# NBT
+cesu8 = { version = "1.1.0", optional = true }
+trait-variant = "0.1.2"
+
+[dependencies.serde]
+version = "1"
+optional = true
+default-features = false
+
+[dependencies.serde_json]
+version = "1"
+optional = true
+features = ["std"]
+default-features = false
+
+[dependencies.serde_derive]
+version = "1"
+optional = true
+
+[dependencies.tokio]
+workspace = true
+features = ["io-std", "io-util"]
+default-features = false
+
+[features]
+test = [
+    "tokio/macros", "tokio/rt", "dep:tokio-test",
+    "serde", "serde_derive", "serde/derive",
+    "uuid", "uuid/v4",
+    "nbt",
+    "context",
+    "slices"
+]
+
+default = ["serde", "macros", "uuid", "slices"]
+
+serde = ["dep:serde", "serde_json"]
+macros = []
+
+nbt = ["cesu8"]
+tcp-shield = []
+slices = []
+
+context = []

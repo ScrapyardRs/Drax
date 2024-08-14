@@ -1,5 +1,4 @@
-use crate::prelude::{PacketComponent, Size};
-use crate::{throw_explain, PinnedLivelyResult};
+use crate::prelude::{DraxResult, NbtError, PacketComponent, Size};
 use std::io::Cursor;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -11,29 +10,26 @@ pub struct NbtAccounter {
 }
 
 impl NbtAccounter {
-    pub fn account_bytes(&mut self, bytes: u64) -> crate::prelude::Result<()> {
+    pub fn account_bytes(&mut self, bytes: u64) -> DraxResult<()> {
         if self.limit == 0 {
             return Ok(());
         }
         match self.current.checked_add(bytes) {
             Some(next) => {
                 if next > self.limit {
-                    throw_explain!(format!(
-                        "Nbt tag too big, read {} bytes of allowed {}.",
-                        next, self.limit
-                    ));
+                    return NbtError::tag_too_big(self.limit, next);
                 }
                 self.current = next;
                 Ok(())
             }
-            None => throw_explain!("Overflowed bits in accounter."),
+            None => NbtError::accounter_overflow(),
         }
     }
 }
 
 macro_rules! define_tags {
     ($(
-        $tag:ident {
+        $tag:ident $idx:literal {
             const type = $backing_ty:ty;
             fn size($size_ref_ident:ident) {
                 $($sizer_tt:tt)*
@@ -61,42 +57,46 @@ macro_rules! define_tags {
             pub fn get_tag_bit(&self) -> u8 {
                 match self {
                     $(
-                    Tag::$tag(_) => ${index(0)},
+                    Tag::$tag(_) => $idx,
                     )*
                 }
             }
         }
 
-        pub fn load_tag<'a, R: $crate::prelude::AsyncRead + Unpin + Send + Sync + ?Sized>(read: &'a mut R, bit: u8, depth: i32, accounter: &'a mut $crate::nbt::NbtAccounter) -> $crate::PinnedLivelyResult<'a, Tag> {
-            Box::pin(async move {
-                match bit {
-                    $(
-                    ${index(0)} => {
-                        let $reader = read;
-                        let $accounter = accounter;
-                        let $depth = depth;
-                        $($reader_tt)*
-                    }
-                    )*
-                    _ => $crate::throw_explain!(format!("Invalid bit {} found while loading tag.", bit))
+        pub async fn load_tag<R: $crate::prelude::AsyncRead + Unpin + Send + Sync + ?Sized>(
+            read: &mut R,
+            bit: u8,
+            depth: i32,
+            accounter: &mut $crate::delegate::nbt::NbtAccounter
+        ) -> DraxResult<Tag> {
+            match bit {
+                $(
+                $idx => {
+                    let $reader = read;
+                    let $accounter = accounter;
+                    let $depth = depth;
+                    $($reader_tt)*
                 }
-            })
+                )*
+                bit => NbtError::invalid_tag_bit(bit)
+            }
         }
 
-        pub fn write_tag<'a, W: $crate::prelude::AsyncWrite + Unpin + Send + Sync + ?Sized>(write: &'a mut W, tag: &'a Tag) -> $crate::PinnedLivelyResult<'a, ()> {
-            Box::pin(async move {
-                match tag {
-                    $(
-                    Tag::$tag($write_ref_ident) => {
-                        let $writer = write;
-                        $($writer_tt)*
-                    }
-                    )*
+        pub async fn write_tag<W: $crate::prelude::AsyncWrite + Unpin + Send + Sync + ?Sized>(
+            write: &mut W,
+            tag: &Tag
+        ) -> DraxResult<()> {
+            match tag {
+                $(
+                Tag::$tag($write_ref_ident) => {
+                    let $writer = write;
+                    $($writer_tt)*
                 }
-            })
+                )*
+            }
         }
 
-        pub fn size_tag(tag: &Tag) -> $crate::prelude::Result<usize> {
+        pub fn size_tag(tag: &Tag) -> DraxResult<usize> {
             match tag {
                 $(
                 Tag::$tag($size_ref_ident) => {
@@ -111,11 +111,13 @@ macro_rules! define_tags {
 async fn read_string<R: AsyncRead + Unpin + Send + Sync + ?Sized>(
     read: &mut R,
     accounter: &mut NbtAccounter,
-) -> crate::prelude::Result<String> {
+) -> DraxResult<String> {
     let len = read.read_u16().await?;
     let mut bytes = vec![0u8; len as usize];
     read.read_exact(&mut bytes).await?;
-    let string = cesu8::from_java_cesu8(&bytes)?.to_string();
+    let string = cesu8::from_java_cesu8(&bytes)
+        .map_err(NbtError::from)?
+        .to_string();
     accounter.account_bytes(string.len() as u64)?;
     Ok(string)
 }
@@ -123,19 +125,19 @@ async fn read_string<R: AsyncRead + Unpin + Send + Sync + ?Sized>(
 async fn write_string<W: AsyncWrite + Unpin + Send + Sync + ?Sized>(
     write: &mut W,
     reference: &str,
-) -> crate::prelude::Result<()> {
+) -> DraxResult<()> {
     let cesu_8 = &cesu8::to_java_cesu8(reference);
     write.write_u16(cesu_8.len() as u16).await?;
     write.write_all(cesu_8).await?;
     Ok(())
 }
 
-fn size_string(reference: &str) -> crate::prelude::Result<usize> {
+fn size_string(reference: &str) -> DraxResult<usize> {
     Ok(2 + cesu8::to_java_cesu8(reference).len())
 }
 
 define_tags! {
-    TagEnd {
+    TagEnd 0 {
         const type = ();
         fn size(_s) {
             Ok(0)
@@ -148,7 +150,7 @@ define_tags! {
             Ok(Tag::TagEnd(()))
         },
     },
-    TagByte {
+    TagByte 1 {
         const type = u8;
         fn size(_reference) {
             Ok(1)
@@ -163,7 +165,7 @@ define_tags! {
             Ok(Tag::TagByte(reader.read_u8().await?))
         },
     },
-    TagShort {
+    TagShort 2 {
         const type = u16;
         fn size(_reference) {
             Ok(2)
@@ -177,7 +179,7 @@ define_tags! {
             Ok(Tag::TagShort(reader.read_u16().await?))
         },
     },
-    TagInt {
+    TagInt 3 {
         const type = i32;
         fn size(_reference) {
             Ok(4)
@@ -191,7 +193,7 @@ define_tags! {
             Ok(Tag::TagInt(reader.read_i32().await?))
         },
     },
-    TagLong {
+    TagLong 4 {
         const type = i64;
         fn size(_reference) {
             Ok(8)
@@ -205,7 +207,7 @@ define_tags! {
             Ok(Tag::TagLong(reader.read_i64().await?))
         },
     },
-    TagFloat {
+    TagFloat 5 {
         const type = f32;
         fn size(_reference) {
             Ok(4)
@@ -219,7 +221,7 @@ define_tags! {
             Ok(Tag::TagFloat(reader.read_f32().await?))
         },
     },
-    TagDouble {
+    TagDouble 6 {
         const type = f64;
         fn size(_reference) {
             Ok(8)
@@ -233,7 +235,7 @@ define_tags! {
             Ok(Tag::TagDouble(reader.read_f64().await?))
         },
     },
-    TagByteArray {
+    TagByteArray 7 {
         const type = Vec<u8>;
         fn size(reference) {
             Ok(4 + reference.len())
@@ -252,7 +254,7 @@ define_tags! {
             Ok(Tag::TagByteArray(bytes))
         },
     },
-    TagString {
+    TagString 8 {
         const type = String;
         fn size(reference) {
             size_string(reference)
@@ -265,7 +267,7 @@ define_tags! {
             Ok(Tag::TagString(read_string(reader, accounter).await?))
         },
     },
-    TagList {
+    TagList 9 {
         const type = (u8, Vec<Tag>);
         fn size(reference) {
             Ok(5 + {
@@ -280,26 +282,26 @@ define_tags! {
             writer.write_u8(reference.0).await?;
             writer.write_i32(reference.1.len() as i32).await?;
             for tag in &reference.1 {
-                write_tag(writer, tag).await?;
+                Box::pin(write_tag(writer, tag)).await?;
             }
             Ok(())
         },
         fn read(reader, accounter, depth) {
             accounter.account_bytes(37)?;
             if depth > 512 {
-                throw_explain!("NBT tag too complex. Depth surpassed 512.")
+                return NbtError::complex_tag();
             }
             let tag_byte = reader.read_u8().await?;
             let length = reader.read_i32().await?;
             accounter.account_bytes((4 * length) as u64)?;
             let mut v = Vec::with_capacity(length as usize);
             for _ in 0..length {
-                v.push(load_tag(reader, tag_byte, depth + 1, accounter).await?);
+                v.push(Box::pin(load_tag(reader, tag_byte, depth + 1, accounter)).await?);
             }
             Ok(Tag::TagList((tag_byte, v)))
         },
     },
-    CompoundTag {
+    CompoundTag 10 {
         const type = Vec<(String, Tag)>;
         fn size(reference) {
             if reference.is_empty() {
@@ -321,7 +323,7 @@ define_tags! {
             for (key, value) in reference {
                 writer.write_u8(value.get_tag_bit()).await?;
                 write_string(writer, key).await?;
-                write_tag(writer, value).await?;
+                Box::pin(write_tag(writer, value)).await?;
             }
             writer.write_u8(0).await?;
             Ok(())
@@ -329,7 +331,7 @@ define_tags! {
         fn read(reader, accounter, depth) {
             accounter.account_bytes(48)?;
             if depth > 512 {
-                throw_explain!("NBT tag too complex. Depth surpassed 512.")
+                return NbtError::complex_tag();
             }
             let mut map = Vec::new();
             loop {
@@ -339,14 +341,14 @@ define_tags! {
                 }
                 accounter.account_bytes(28)?;
                 let key = read_string(reader, accounter).await?;
-                let data = load_tag(reader, tag_byte, depth + 1, accounter).await?;
+                let data = Box::pin(load_tag(reader, tag_byte, depth + 1, accounter)).await?;
                 map.push((key, data));
                 accounter.account_bytes(36)?;
             }
             Ok(Tag::CompoundTag(map))
         },
     },
-    TagIntArray {
+    TagIntArray 11 {
         const type = Vec<i32>;
         fn size(reference) {
             Ok(4 + (4 * reference.len()))
@@ -369,7 +371,7 @@ define_tags! {
             Ok(Tag::TagIntArray(i_arr))
         },
     },
-    TagLongArray {
+    TagLongArray 12 {
         const type = Vec<i64>;
         fn size(reference) {
             Ok(4 + (8 * reference.len()))
@@ -396,10 +398,11 @@ define_tags! {
 
 #[cfg(test)]
 mod tests {
-    use crate::nbt::{load_tag, read_string, write_string, write_tag, NbtAccounter, Tag};
+    use crate::delegate::nbt::{load_tag, read_string, write_string, write_tag, NbtAccounter, Tag};
+    use crate::prelude::DraxResult;
     use std::io::Cursor;
 
-    pub async fn __test_io(value: Tag) -> crate::prelude::Result<()> {
+    pub async fn __test_io(value: Tag) -> DraxResult<()> {
         let mut cursor = Cursor::new(vec![]);
         write_tag(&mut cursor, &value).await?;
         let inner = cursor.into_inner();
@@ -421,7 +424,7 @@ mod tests {
     macro_rules! test_io {
         ($($test_name:ident, $value:expr),*) => {$(
             #[tokio::test]
-            pub async fn $test_name() -> crate::prelude::Result<()> {
+            pub async fn $test_name() -> DraxResult<()> {
                 __test_io($value).await
             }
         )*};
@@ -442,16 +445,16 @@ mod tests {
         test_tag_float, Tag::TagFloat(12.30),
         test_tag_double, Tag::TagDouble(20.30),
         test_tag_byte_array, Tag::TagByteArray(vec![10, 20, 0, 5]),
-        test_tag_string, Tag::TagString(format!("test string")),
+        test_tag_string, Tag::TagString("test string".to_string()),
         test_tag_list, Tag::TagList((2, vec![Tag::TagShort(10u16), Tag::TagShort(20), Tag::TagShort(9), Tag::TagShort(15)])),
-        test_tag_compound, Tag::CompoundTag(create_map!(format!("abc"), Tag::TagShort(15), format!("def"), Tag::TagFloat(12.30))),
+        test_tag_compound, Tag::CompoundTag(create_map!("abc".to_string(), Tag::TagShort(15), "def".to_string(), Tag::TagFloat(12.30))),
         test_tag_int_array, Tag::TagIntArray(vec![30, 23, 123, 955]),
         test_tag_long_array, Tag::TagLongArray(vec![321423, 24312, 123123, 12312])
     }
 
     #[tokio::test]
-    pub async fn test_string_read_write_persistence() -> crate::prelude::Result<()> {
-        let ref_string = format!("Example String");
+    pub async fn test_string_read_write_persistence() -> DraxResult<()> {
+        let ref_string = "Example String".to_string();
         let mut cursor = Cursor::new(vec![]);
         write_string(&mut cursor, &ref_string).await?;
         let mut cursor = Cursor::new(cursor.into_inner());
@@ -468,7 +471,26 @@ mod tests {
     }
 }
 
-#[macro_export]
+/// A macro which creates an `Tag::CompoundTag` from a set of tag-like values.
+/// ```rust
+/// # use drax::prelude::*;
+/// # use std::io::Cursor;
+/// use drax::tag;
+/// # #[tokio::test]
+/// # async fn test() -> DraxResult<()> {
+/// let example = Some(tag!(
+///     example: Tag::TagByte(10),
+///     example2: Tag::TagShort(20),
+///     example3: Tag::TagInt(30)
+/// ));
+/// let mut cursor = Cursor::new(vec![]);
+/// cursor.encode_component::<EnsuredCompoundTag>(&example).await?;
+/// cursor.set_position(0);
+/// let back = cursor.decode_component::<EnsuredCompoundTag>().await?;
+/// assert_eq!(example, back);
+/// # Ok(()) }
+/// ```
+#[cfg_attr(feature = "nbt", macro_export)]
 macro_rules! tag {
     ($(
         $tag_field_name:ident: $tag_value:expr
@@ -478,7 +500,7 @@ macro_rules! tag {
             $(
             data.push((stringify!($tag_field_name), $tag_value));
             )*
-            $crate::nbt::Tag::compound_tag(data)
+            $crate::delegate::nbt::Tag::compound_tag(data)
         }
     }
 }
@@ -498,59 +520,44 @@ pub struct EnsuredCompoundTag<const LIMIT: u64 = 0>;
 impl<const LIMIT: u64, C: Send + Sync> PacketComponent<C> for EnsuredCompoundTag<LIMIT> {
     type ComponentType = Option<Tag>;
 
-    fn decode<'a, A: AsyncRead + Unpin + Send + Sync + ?Sized>(
-        _: &'a mut C,
-        read: &'a mut A,
-    ) -> PinnedLivelyResult<'a, Self::ComponentType> {
-        Box::pin(async move {
-            let b = read.read_u8().await?;
-            if b == 0 {
-                return Ok(None);
-            }
-            if b != 10 {
-                throw_explain!(format!(
-                    "Invalid tag bit. Expected compound tag; received {b}"
-                ));
-            }
-            let mut accounter = NbtAccounter {
-                limit: LIMIT,
-                current: 0,
-            };
-            let _ = read_string(read, &mut accounter).await?;
-            let tag = load_tag(read, b, 0, &mut accounter).await?;
-            Ok(Some(tag))
-        })
-    }
+    decode!(read {
+        let b = read.read_u8().await?;
+        if b == 0 {
+            return Ok(None);
+        }
+        if b != 10 {
+            return NbtError::invalid_tag_bit(b);
+        }
+        let mut accounter = NbtAccounter {
+            limit: LIMIT,
+            current: 0,
+        };
+        let _ = read_string(read, &mut accounter).await?;
+        let tag = load_tag(read, b, 0, &mut accounter).await?;
+        Ok(Some(tag))
+    });
 
-    fn encode<'a, A: AsyncWrite + Unpin + Send + Sync + ?Sized>(
-        component_ref: &'a Self::ComponentType,
-        _: &'a mut C,
-        write: &'a mut A,
-    ) -> PinnedLivelyResult<'a, ()> {
-        Box::pin(async move {
-            let mut buffer = Cursor::new(Vec::with_capacity(
-                match Self::size(component_ref, &mut ())? {
-                    Size::Dynamic(x) | Size::Constant(x) => x,
-                },
-            ));
-            match component_ref {
-                Some(tag) => {
-                    buffer.write_u8(10).await?;
-                    write_string(&mut buffer, "").await?;
-                    write_tag(&mut buffer, tag).await?;
-                    let inner = buffer.into_inner();
-                    write.write_all(&inner).await?;
-                    Ok(())
-                }
-                None => {
-                    write.write_u8(0).await?;
-                    Ok(())
-                }
+    encode!(component_ref, write {
+        let mut buffer = Cursor::new(Vec::with_capacity(
+            match Self::size(component_ref, &mut ())? {
+                Size::Dynamic(x) | Size::Constant(x) => x,
+            },
+        ));
+        match component_ref {
+            Some(tag) => {
+                buffer.write_u8(10).await?;
+                write_string(&mut buffer, "").await?;
+                write_tag(&mut buffer, tag).await?;
+                let inner = buffer.into_inner();
+                write.write_all(&inner).await?;
             }
-        })
-    }
+            None => {
+                write.write_u8(0).await?;
+            }
+        }
+    });
 
-    fn size(input: &Self::ComponentType, _: &mut C) -> crate::prelude::Result<Size> {
+    fn size(input: &Self::ComponentType, _: &mut C) -> DraxResult<Size> {
         match input {
             Some(tag) => {
                 let dynamic_size = Size::Dynamic(3); // short 0 for str + byte tag

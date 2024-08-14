@@ -1,56 +1,19 @@
-[package]
-name = "drax"
+[workspace]
+resolver = "2"
+members = [
+    "drax",
+    "examples/pingpong",
+]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
+authors = ["Corey Shupe (corey@mail.fixed.codes)"]
+description = "Simple abstraction layer over a protocol buffer, bringing dtos to regular types."
+repository = "https://github.com/CoreyShupe/drax"
+readme = "README.md"
+license-file = "LICENSE"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-# Default dependencies
-pin-project-lite = "0.2.9"
-tokio-test = { version = "0.4.2", optional = true }
-
-# Encryption
-cfb8 = { version = "0.7.1", optional = true }
-aes = { version = "0.7.5", optional = true }
-
-# NBT
-cesu8 = { version = "1.1.0", optional = true }
-uuid = "1.2.2"
-anyhow = { version = "1.0.68", optional = true }
-
-[dependencies.serde]
-version = "1"
-optional = true
-default-features = false
-
-[dependencies.serde_json]
-version = "1"
-optional = true
-features = ["std"]
-default-features = false
-
-[dependencies.tokio]
-version = "1.23.0"
-features = ["io-std", "io-util"]
-default-features = false
-
-[features]
-test = ["tokio/macros", "tokio/rt", "dep:tokio-test", "tokio/rt-multi-thread"]
-
-default = ["encryption", "serde", "macros", "nbt"]
-
-anyhow = ["dep:anyhow"]
-encryption = ["cfb8", "aes"]
-nbt = ["cesu8"]
-serde = ["dep:serde", "serde_json"]
-macros = []
-
-tcp-shield = []
-
-[dev-dependencies]
-criterion = { version = "0.4", features = ["async_tokio"] }
-
-[[bench]]
-name = "sample_function_benchmark"
-harness = false
+[workspace.dependencies]
+drax = { path = "drax" }
+tokio = { version = "1.39.2", default-features = false }

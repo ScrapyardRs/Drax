@@ -1,0 +1,9 @@
+[package]
+name = "pingpong"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"], default-features = true }
+
+drax.workspace = true
