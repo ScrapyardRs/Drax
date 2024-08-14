@@ -6,3 +6,6 @@ test:
     echo -e "Running example \`\\033[36m{{project}}\\033[0m\`."
     echo "<--====-->"
     cargo run -p {{project}}
+
+publish:
+    cargo publish -p drax --all-features

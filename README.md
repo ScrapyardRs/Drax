@@ -2,6 +2,20 @@
 
 The invisible transport layer between bytes and processed frames.
 
+## Examples
+
+Please see the examples directory for examples of how to use the project.
+
+To execute an example you can run either `cargo run -p <example>` or
+`just example <example>`.
+
+## Future Plans
+
+- Add derive macros to automatically derive the `PacketComponent` trait.
+- Add documentation in README.md for creating custom packets.
+- Add derive documentation in the README.md.
+- Build documentation surrounding context building and using context with packets.
+
 ## Packet Framing
 
 Packet framing with Drax is not traditional. The packets are not sized then read into a buffer, but instead
